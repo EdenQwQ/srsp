@@ -1,0 +1,12 @@
+[package]
+name = "srsp"
+version = "0.1.0"
+edition = "2021"
+description = "Simple Rust ScratchPad"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+xcb = "0.10.1"
+clap = "3.1.14"
+fsio = "0.3.0"
