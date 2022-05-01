@@ -6,18 +6,17 @@ fn main() {
 
     match args.subcommand() {
         Some(("push", push_args)) => {
+            let (conn, _) = xcb::Connection::connect(None).unwrap();
             if push_args.is_present("focused") {
                 let count = push_args.occurrences_of("focused");
                 for _ in 0..count {
-                    let (conn, _) = xcb::Connection::connect(None).unwrap();
                     let focused = xcb::get_input_focus(&conn).get_reply().unwrap().focus();
-                    push(conn, focused);
+                    push(&conn, focused);
                 }
             }
             if push_args.is_present("selected") {
                 let count = push_args.occurrences_of("selected");
                 for _ in 0..count {
-                    let (conn, _) = xcb::Connection::connect(None).unwrap();
                     let selected = std::process::Command::new("sh")
                         .arg("-c")
                         .arg("xdotool selectwindow")
@@ -29,13 +28,12 @@ fn main() {
                         .trim()
                         .parse::<u32>()
                         .unwrap();
-                    push(conn, selected);
+                    push(&conn, selected);
                 }
             }
             if push_args.is_present("window_id") {
                 let options: Vec<&str> = push_args.values_of("window_id").unwrap().collect();
                 for option in options {
-                    let (conn, _) = xcb::Connection::connect(None).unwrap();
                     let window = match option {
                         "focused" => xcb::get_input_focus(&conn).get_reply().unwrap().focus(),
                         "selected" => {
@@ -53,23 +51,22 @@ fn main() {
                         }
                         _ => option.parse::<u32>().unwrap(),
                     };
-                    push(conn, window);
+                    push(&conn, window);
                 }
             }
         }
         Some(("pop", pop_args)) => {
+            let (conn, _) = xcb::Connection::connect(None).unwrap();
             if pop_args.is_present("all") {
                 let windows = file::read_text_file("/tmp/srsp.tmp").unwrap();
                 for window in windows.lines() {
-                    let (conn, _) = xcb::Connection::connect(None).unwrap();
                     let window = window.parse::<u32>().unwrap();
-                    pop(conn, window);
+                    pop(&conn, window);
                 }
             }
             if pop_args.is_present("last") {
                 let count = pop_args.occurrences_of("last");
                 for _ in 0..count {
-                    let (conn, _) = xcb::Connection::connect(None).unwrap();
                     let last = file::read_text_file("/tmp/srsp.tmp")
                         .unwrap()
                         .lines()
@@ -77,13 +74,12 @@ fn main() {
                         .unwrap()
                         .parse::<u32>()
                         .unwrap();
-                    pop(conn, last);
+                    pop(&conn, last);
                 }
             }
             if pop_args.is_present("window_id") {
                 let options: Vec<&str> = pop_args.values_of("window_id").unwrap().collect();
                 for option in options {
-                    let (conn, _) = xcb::Connection::connect(None).unwrap();
                     let window = match option {
                         "last" => file::read_text_file("/tmp/srsp.tmp")
                             .unwrap()
@@ -164,16 +160,16 @@ pub fn clap_args() -> Command<'static> {
     app
 }
 
-pub fn push(conn: xcb::Connection, window: u32) {
+pub fn push(conn: &xcb::Connection, window: u32) {
     file::ensure_exists("/tmp/srsp.tmp").unwrap();
     file::append_text_file("/tmp/srsp.tmp", &format!("{}\n", window)).unwrap();
-    xcb::unmap_window_checked(&conn, window)
+    xcb::unmap_window_checked(conn, window)
         .request_check()
         .unwrap();
     conn.flush();
 }
 
-pub fn pop(conn: xcb::Connection, window: u32) {
+pub fn pop(conn: &xcb::Connection, window: u32) {
     let mut new = String::new();
     for line in file::read_text_file("/tmp/srsp.tmp").unwrap().lines() {
         if line.parse::<u32>().unwrap() == window {
@@ -182,7 +178,7 @@ pub fn pop(conn: xcb::Connection, window: u32) {
         new.push_str(&format!("{}\n", line));
     }
     file::write_text_file("/tmp/srsp.tmp", &new).unwrap();
-    xcb::map_window_checked(&conn, window)
+    xcb::map_window_checked(conn, window)
         .request_check()
         .unwrap();
     conn.flush();
