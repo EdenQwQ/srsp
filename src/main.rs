@@ -6,7 +6,7 @@ fn main() {
 
     let (conn, _) = xcb::Connection::connect(None).unwrap();
     if args.is_present("push") {
-        let option = args.value_of("push").unwrap();
+        let option = args.value_of("push").unwrap_or("focused");
         let window = match option {
             "focused" => xcb::get_input_focus(&conn).get_reply().unwrap().focus(),
             "selected" => {
@@ -24,13 +24,9 @@ fn main() {
             }
             _ => option.parse::<u32>().unwrap(),
         };
-        push(window);
-        xcb::unmap_window_checked(&conn, window)
-            .request_check()
-            .unwrap();
-        conn.flush();
+        push(conn, window);
     } else if args.is_present("pop") {
-        let option = args.value_of("pop").unwrap();
+        let option = args.value_of("pop").unwrap_or("last");
         let window = match option {
             "last" => file::read_text_file("/tmp/srsp.tmp")
                 .unwrap()
@@ -41,11 +37,7 @@ fn main() {
                 .unwrap(),
             _ => option.parse::<u32>().unwrap(),
         };
-        pop(&window);
-        xcb::map_window_checked(&conn, window)
-            .request_check()
-            .unwrap();
-        conn.flush();
+        pop(conn, window);
     }
 }
 
@@ -55,13 +47,13 @@ pub fn clap_args() -> Command<'static> {
         .author(env!("CARGO_PKG_AUTHORS"))
         .about(env!("CARGO_PKG_DESCRIPTION"))
         .arg(
-            arg!(-i - -push)
+            arg!(-i - -push[window_id])
                 .required(false)
                 .takes_value(true)
                 .help("Push the focused window into the scratchpad"),
         )
         .arg(
-            arg!(-o - -pop)
+            arg!(-o - -pop[window_id])
                 .required(false)
                 .takes_value(true)
                 .help("Pop out a window from the scratchpad"),
@@ -69,18 +61,26 @@ pub fn clap_args() -> Command<'static> {
     app
 }
 
-pub fn push(window: u32) {
+pub fn push(conn: xcb::Connection, window: u32) {
     file::ensure_exists("/tmp/srsp.tmp").unwrap();
     file::append_text_file("/tmp/srsp.tmp", &format!("{}\n", window)).unwrap();
+    xcb::unmap_window_checked(&conn, window)
+        .request_check()
+        .unwrap();
+    conn.flush();
 }
 
-pub fn pop(window: &u32) {
+pub fn pop(conn: xcb::Connection, window: u32) {
     let mut new = String::new();
     for line in file::read_text_file("/tmp/srsp.tmp").unwrap().lines() {
-        if line.parse::<u32>().unwrap() == *window {
+        if line.parse::<u32>().unwrap() == window {
             continue;
         }
         new.push_str(&format!("{}\n", line));
     }
     file::write_text_file("/tmp/srsp.tmp", &new).unwrap();
+    xcb::map_window_checked(&conn, window)
+        .request_check()
+        .unwrap();
+    conn.flush();
 }
