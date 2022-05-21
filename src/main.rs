@@ -155,7 +155,7 @@ pub fn clap_args() -> Command<'static> {
                         .takes_value(false)
                         .conflicts_with_all(&["window_id", "last"])
                         .help("Pop out the last window from the scratchpad"),
-                ),
+                )
         );
     app
 }

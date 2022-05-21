@@ -12,4 +12,15 @@ cargo install --path .
 
 ## Usage
 
-see `srsp -h`
+```
+srsp [SUBCOMMAND]
+
+OPTIONS:
+    -h, --help       Print help information
+    -V, --version    Print version information
+
+SUBCOMMANDS:
+    help    Print this message or the help of the given subcommand(s)
+    pop     Pop out windows from the scratchpad
+    push    Push the windows into the scratchpad
+```
